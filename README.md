@@ -4,6 +4,9 @@ DirectDraw Viewer is a Visual Studio Code extension that lets you open and explo
 It provides a clean, layer‑by‑layer view of DDS textures and makes it easy to inspect or export them as PNG images.
 
 ---
+## Screenshots
+![one texture](https://github.com/hyuckkim/directdraw-viewer/blob/master/readme_img/nocomp.png?raw=true)
+![more texture](https://github.com/hyuckkim/directdraw-viewer/blob/master/readme_img/comp.png?raw=true)
 
 ## ✨ Features
 
@@ -27,7 +30,7 @@ It provides a clean, layer‑by‑layer view of DDS textures and makes it easy t
 
 ## 🛠️ Requirements
 
-- Visual Studio Code `^1.80.0` or later.
+- Visual Studio Code `^1.46.0` or later.
 - No additional dependencies required.
 
 ---

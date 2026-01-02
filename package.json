@@ -3,8 +3,9 @@
   "displayName": "DirectDraw DDS Viewer",
   "description": "show directdraw file on layer-by-layer. using parse-dds library.",
   "version": "0.0.1",
+  "publisher": "hyuckkim",
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.46.0"
   },
   "categories": [
     "Visualization"
@@ -44,7 +45,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
     "@types/pngjs": "^6.0.5",
-    "@types/vscode": "^1.107.0",
+    "@types/vscode": "^1.46.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.39.1",
