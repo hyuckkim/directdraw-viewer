@@ -26,7 +26,7 @@ class DdsDocument implements vscode.CustomDocument {
   }
 }
 
-class DdsEditorProvider implements vscode.CustomEditorProvider<DdsDocument> {
+class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocument> {
   public readonly onDidChangeCustomDocument: vscode.Event<vscode.CustomDocumentEditEvent<DdsDocument>>;
 
   constructor(private readonly context: vscode.ExtensionContext) {
@@ -83,36 +83,5 @@ class DdsEditorProvider implements vscode.CustomEditorProvider<DdsDocument> {
         }
       }
     });
-  }
-
-  async saveCustomDocument(
-    _document: DdsDocument,
-    _cancellation: vscode.CancellationToken
-  ): Promise<void> {
-  }
-
-  async saveCustomDocumentAs(
-    _document: DdsDocument,
-    _targetResource: vscode.Uri,
-    _cancellation: vscode.CancellationToken
-  ): Promise<void> {
-    throw new Error("Save As not supported");
-  }
-
-  async revertCustomDocument(
-    _document: DdsDocument,
-    _cancellation: vscode.CancellationToken
-  ): Promise<void> {
-  }
-
-  async backupCustomDocument(
-    _document: DdsDocument,
-    _context: vscode.CustomDocumentBackupContext,
-    _cancellation: vscode.CancellationToken
-  ): Promise<vscode.CustomDocumentBackup> {
-    return {
-      id: _document.uri.toString(),
-      delete: () => {}
-    };
   }
 }
