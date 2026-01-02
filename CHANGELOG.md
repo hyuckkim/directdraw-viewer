@@ -22,3 +22,7 @@ All notable changes to the **DirectDraw Viewer** extension will be documented he
 - First public release of DirectDraw Viewer.
 - Open `.dds` files directly in VS Code and display their layers.
 - Basic DDS → PNG conversion and viewing functionality.
+
+
+## [0.0.2] - 2026-01-03
+- Remove unnecessary copies of DDS data.
