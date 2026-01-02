@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>DDS Viewer</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; position: relative; }
+    #main-image { border: 1px solid #ccc; max-width: 100%; height: auto; display: block; margin-bottom: 2rem; }
+    .selector {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      background: rgba(255,255,255,0.9);
+      padding: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .selector img {
+      width: 40px;
+      height: 40px;
+      object-fit: cover;
+      cursor: pointer;
+      border: 1px solid #aaa;
+    }
+    .selector img.active {
+      border: 2px solid #007acc;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <button>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download-icon lucide-download"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
+    </button>
+  </div>
+  <img id="main-image" src="" alt="Main DDS Image" />
+
+  <div class="selector" id="selector"></div>
+  <div style="display: none">
+    <!-- IMAGES_PLACEHOLDER -->
+  </div>
+
+  <script>
+    const vscode = acquireVsCodeApi();
+
+    const allImages = document.querySelectorAll('.dds-image');
+
+    const mainImage = document.getElementById('main-image');
+    const selector = document.getElementById('selector');
+
+    const idx = 0;
+
+    allImages.forEach((img, index) => {
+      const thumb = document.createElement('img');
+      thumb.src = img.src;
+      thumb.dataset.index = index;
+      thumb.addEventListener('click', () => {
+        mainImage.src = img.src;
+        document.querySelectorAll('.selector img').forEach(el => el.classList.remove('active'));
+        thumb.classList.add('active');
+        idx = index;
+      });
+      selector.appendChild(thumb);
+    });
+
+    if (allImages.length > 0) {
+      mainImage.src = allImages[0].src;
+      selector.querySelector('img').classList.add('active');
+    }
+
+    if (allImages.length === 1) {
+      selector.style.display = 'none';
+    }
+    
+    document.querySelector('button').addEventListener('click', () => {
+      vscode.postMessage({ type: "download", index: idx })
+    });
+  </script>
+</body>
+</html>

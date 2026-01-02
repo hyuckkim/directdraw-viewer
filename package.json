@@ -1,0 +1,59 @@
+{
+  "name": "directdraw-viewer",
+  "displayName": "DirectDraw DDS Viewer",
+  "description": "show directdraw file on layer-by-layer. using parse-dds library.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Visualization"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "directdraw-viewer.ddsViewer",
+        "displayName": "DirectDraw Viewer",
+        "selector": [
+          {
+            "filenamePattern": "*.dds"
+          }
+        ]
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hyuckkim/directdraw-viewer"
+  },
+  "homepage": "https://github.com/hyuckkim/directdraw-viewer",
+  "bugs": {
+    "url": "https://github.com/hyuckkim/directdraw-viewer/issues"
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@types/pngjs": "^6.0.5",
+    "@types/vscode": "^1.107.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.1"
+  },
+  "dependencies": {
+    "dxt-js": "^0.0.3",
+    "parse-dds": "^1.2.1",
+    "pngjs": "^7.0.0"
+  }
+}
