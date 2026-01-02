@@ -54,7 +54,6 @@
   },
   "dependencies": {
     "dxt-js": "^0.0.3",
-    "parse-dds": "^1.2.1",
     "pngjs": "^7.0.0"
   }
 }

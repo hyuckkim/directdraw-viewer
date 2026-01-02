@@ -1,4 +1,4 @@
-import parseDDS = require("parse-dds");
+import { parseDDS } from "./parsedds";
 import { decodeDXT } from "./decoder";
 
 export interface RGBAImage {
@@ -7,32 +7,27 @@ export interface RGBAImage {
   data: Uint8Array; // RGBA8 pixel data
 }
 
-export function ddsToRGBAArray(buffer: ArrayBuffer): RGBAImage[] {
-  try {
+export function ddsToRGBAArray(buffer: Uint8Array): RGBAImage[] {
+  try {   
     const info = parseDDS(buffer);
-    const { shape, format, images } = info;
+    const { format, images } = info;
 
     const results: RGBAImage[] = [];
 
     for (const img of images) {
-      const [width, height] = img.shape;
-      const src = new Uint8Array(buffer, img.offset, img.length);
-      const buf = src.buffer.slice(src.byteOffset, src.byteOffset + src.byteLength);
+      const {width, height} = {...img};
+      const src = img.data;
 
       let rgba: Uint8Array;
       switch (format) {
         case "dxt1":
-          rgba = decodeDXT(buf, "dxt1", width, height);
+          rgba = decodeDXT(src, "dxt1", width, height);
           break;
         case "dxt3":
-          rgba = decodeDXT(buf, "dxt3", width, height);
+          rgba = decodeDXT(src, "dxt3", width, height);
           break;
         case "dxt5":
-          rgba = decodeDXT(buf, "dxt5", width, height);
-          break;
-        case "rgba32f":
-          // 비압축 RGBA → 그대로 픽셀 데이터
-          rgba = new Uint8Array(buffer, img.offset, img.length);
+          rgba = decodeDXT(src, "dxt5", width, height);
           break;
         default:
           throw new Error("Unsupported DDS format: " + format);
@@ -52,8 +47,8 @@ export function ddsToRGBAArray(buffer: ArrayBuffer): RGBAImage[] {
   }
 }
 
-export function parseUncompressedDDS(buffer: ArrayBuffer): RGBAImage {
-  const view = new DataView(buffer);
+export function parseUncompressedDDS(buffer: Uint8Array): RGBAImage {
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
   const magic = String.fromCharCode(
     view.getUint8(0),

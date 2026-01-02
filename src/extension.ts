@@ -24,7 +24,7 @@ class DdsDocument implements vscode.CustomDocument {
   dispose(): void {}
   static async create(uri: vscode.Uri): Promise<DdsDocument> {
     const document = new DdsDocument(uri);
-    document.content = await generateRGBAArrayFromDDS(uri.fsPath);
+    document.content = await generateRGBAArrayFromDDS(uri);
     return document;
   }
 }

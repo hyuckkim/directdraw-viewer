@@ -1,11 +1,10 @@
-import { readFileSync } from "fs";
 import { ddsToRGBAArray, RGBAImage } from "./parser";
 import { rgbaToDataURL } from "./encoder";
+import * as vscode from 'vscode';
 
-export async function generateRGBAArrayFromDDS(filePath: string) {
-  const buf = readFileSync(filePath);
-  const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  const ddsInfo = ddsToRGBAArray(arrayBuffer);
+export async function generateRGBAArrayFromDDS(filePath: vscode.Uri) {
+  const buf = await vscode.workspace.fs.readFile(filePath);
+  const ddsInfo = ddsToRGBAArray(buf);
 
   return ddsInfo;
 }
