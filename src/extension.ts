@@ -19,10 +19,13 @@ export function activate(context: vscode.ExtensionContext) {
 
 class DdsDocument implements vscode.CustomDocument {
   uri: vscode.Uri;
+  content: RGBAImage[] | null = null;
   constructor(uri: vscode.Uri) { this.uri = uri; }
   dispose(): void {}
   static async create(uri: vscode.Uri): Promise<DdsDocument> {
-    return new DdsDocument(uri);
+    const document = new DdsDocument(uri);
+    document.content = await generateRGBAArrayFromDDS(uri.fsPath);
+    return document;
   }
 }
 
@@ -52,24 +55,16 @@ class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocume
     let html = await vscode.workspace.fs.readFile(htmlPath);
     let template = Buffer.from(html).toString("utf-8");
 
-    let content;
-    let ddsInfo: RGBAImage[] | null = null;
-    try {
-      ddsInfo = await generateRGBAArrayFromDDS(document.uri.fsPath);
-      content = generateHtmlFromRGBAArray(ddsInfo);
-    }
-    catch (e) {
-      content = `<h1>Error parsing DDS file</h1><p>${e}`;
-    }
-
-    template = template.replace("<!-- IMAGES_PLACEHOLDER -->", content);
+    template = template.replace("<!-- IMAGES_PLACEHOLDER -->", 
+      generateHtmlFromRGBAArray(document.content || [])
+    );
 
     webviewPanel.webview.html = template;
 
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
       if (message.type === "download") {
         const { index }: { index: number } = message;
-        if (!ddsInfo) {
+        if (!document.content) {
           return;
         }
 
@@ -78,7 +73,11 @@ class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocume
           saveLabel: "Save DDS Image"
         });
         if (uri) {
-          await vscode.workspace.fs.writeFile(uri, rgbaToPngBytes(ddsInfo[index].data, ddsInfo[index].width, ddsInfo[index].height));
+          await vscode.workspace.fs.writeFile(uri, rgbaToPngBytes(
+            document.content[index].data,
+            document.content[index].width,
+            document.content[index].height
+          ));
           vscode.window.showInformationMessage(`Saved to ${uri.fsPath}`);
         }
       }
