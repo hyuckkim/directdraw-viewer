@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { ddsToRGBAArray, RGBAImage } from './parser';
 import { rgbaToDataURL, rgbaToPngBytes } from './encoder';
-import { DdsMetadata, parseDDS } from './parsedds';
+import { DdsMetadata } from './parsedds';
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -68,29 +68,39 @@ class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocume
     _token: vscode.CancellationToken
   ): Promise<void> {
     webviewPanel.webview.options = { enableScripts: true };
-    webviewPanel.webview.html = (await this.getTemplate())
-    .replace("<!-- IMAGES_PLACEHOLDER -->",
-      document.renderedHTML
-    );
+    webviewPanel.webview.html = (await this.getTemplate());
 
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
-      if (message.type === "download") {
-        const { index }: { index: number } = message;
-
-        const uri = await vscode.window.showSaveDialog({
-          filters: { "PNG Image": ["png"] },
-          defaultUri: vscode.Uri.file(document.uri.path + ".png")
-        });
-        if (uri) {
-          await vscode.workspace.fs.writeFile(uri, rgbaToPngBytes(
-            document.content[index].data,
-            document.content[index].width,
-            document.content[index].height
-          ));
-          vscode.window.showInformationMessage(`Saved to ${uri.fsPath}`);
-        }
+      switch (message.type) {
+        case "ready":
+          webviewPanel.webview.postMessage({
+            type: "load",
+            images: document.renderedDataURL,
+            metadata: document.metadata
+          });
+        break;
+        case "download":
+          await this.downloadPNG(
+            vscode.Uri.file(document.uri.path + ".png"),
+            document.content[message.index]
+          );
+        break;
       }
     });
+  }
+  private async downloadPNG(defaultUri: vscode.Uri, img: RGBAImage) {
+    const uri = await vscode.window.showSaveDialog({
+      filters: { "PNG Image": ["png"] },
+      defaultUri: defaultUri,
+    });
+    if (uri) {
+      await vscode.workspace.fs.writeFile(uri, rgbaToPngBytes(
+        img.data,
+        img.width,
+        img.height
+      ));
+      vscode.window.showInformationMessage(`Saved to ${uri.fsPath}`);
+    }
   }
 
   private async getTemplate(): Promise<string> {

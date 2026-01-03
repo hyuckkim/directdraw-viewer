@@ -5,7 +5,7 @@
   <title>DDS Viewer</title>
   <style>
     body { font-family: sans-serif; padding: 1rem; position: relative; }
-    #main-image { border: 1px solid #ccc; max-width: 100%; height: auto; display: block; margin-bottom: 2rem; }
+    #main-image { max-width: 100%; height: auto; display: block; margin-bottom: 2rem; }
     .selector {
       position: fixed;
       bottom: 1rem;
@@ -27,6 +27,11 @@
     .selector img.active {
       border: 2px solid #007acc;
     }
+    .metadata {
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      color: #555;
+    }
   </style>
 </head>
 <body>
@@ -34,44 +39,72 @@
     <button>
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download-icon lucide-download"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
     </button>
+    <span id="metadata" class="metadata"></span>
   </div>
-  <img id="main-image" src="" alt="Main DDS Image" />
+  <img id="main-image" src="" alt="" />
 
-  <div class="selector" id="selector"></div>
-  <div style="display: none">
-    <!-- IMAGES_PLACEHOLDER -->
-  </div>
+  <div class="selector" id="selector" style="display: none"></div>
+  <div class="image-holder" style="display: none"></div>
 
   <script>
     const vscode = acquireVsCodeApi();
-
-    const allImages = document.querySelectorAll('.dds-image');
-
-    const mainImage = document.getElementById('main-image');
-    const selector = document.getElementById('selector');
-
-    const idx = 0;
-
-    allImages.forEach((img, index) => {
-      const thumb = document.createElement('img');
-      thumb.src = img.src;
-      thumb.dataset.index = index;
-      thumb.addEventListener('click', () => {
-        mainImage.src = img.src;
-        document.querySelectorAll('.selector img').forEach(el => el.classList.remove('active'));
-        thumb.classList.add('active');
-        idx = index;
-      });
-      selector.appendChild(thumb);
+    vscode.postMessage({ type: "ready" });
+    addEventListener('message', event => {
+      const message = event.data;
+      if (message.type === 'load') {
+        setImages(message.images);
+        setMetadata(message.metadata);
+        enableImage();
+        document.querySelector('#main-image').style.border = '1px solid #ccc';
+      }
     });
 
-    if (allImages.length > 0) {
-      mainImage.src = allImages[0].src;
-      selector.querySelector('img').classList.add('active');
+    function setImages(srcSet) {
+      for (const [key, value] of Object.entries(srcSet)) {
+        const img = document.createElement('img');
+        img.src = value;
+        img.classList.add('dds-image');
+        img.dataset.index = key;
+        document.querySelector('.image-holder').appendChild(img);
+      }
     }
 
-    if (allImages.length === 1) {
-      selector.style.display = 'none';
+    function setMetadata({ width, height, format }) {
+      const metadataEl = document.getElementById('metadata');
+      metadataEl.textContent = `${width} x ${height} | ${format}`;
+    }
+
+    function enableImage() {
+      const allImages = document.querySelectorAll('.dds-image');
+
+      const mainImage = document.getElementById('main-image');
+      const selector = document.getElementById('selector');
+
+      const idx = 0;
+
+      allImages.forEach((img, index) => {
+        const thumb = document.createElement('img');
+        thumb.src = img.src;
+        thumb.dataset.index = index;
+        thumb.addEventListener('click', () => {
+          mainImage.src = img.src;
+          document.querySelectorAll('.selector img').forEach(el => el.classList.remove('active'));
+          thumb.classList.add('active');
+          idx = index;
+        });
+        selector.appendChild(thumb);
+      });
+
+      if (allImages.length > 0) {
+        mainImage.src = allImages[0].src;
+        selector.querySelector('img').classList.add('active');
+      }
+
+      if (allImages.length === 1) {
+        selector.style.display = 'none';
+      } else {
+        selector.style.display = 'flex';
+      }
     }
     
     document.querySelector('button').addEventListener('click', () => {
