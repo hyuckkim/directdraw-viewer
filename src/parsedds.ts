@@ -1,7 +1,7 @@
 export interface DdsMetadata {
     width: number;
     height: number;
-    format: "dxt1" | "dxt3" | "dxt5" | "none";
+    format: "dxt1" | "dxt3" | "dxt5" | string;
     images: {
         data: Uint8Array<ArrayBufferLike>;
         width: number;
