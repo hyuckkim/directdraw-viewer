@@ -48,6 +48,11 @@ class DdsDocument implements vscode.CustomDocument {
       return `<img src="${url}" width="${this.content[index].width}" height="${this.content[index].height}" class="dds-image"/>`;
     }).join("");
   }
+  get renderedPNGBytes(): Uint8Array[] {
+    return this.content.map((img) =>
+      rgbaToPngBytes(img.data, img.width, img.height)
+    );
+  }
 }
 
 class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocument> {
@@ -68,14 +73,17 @@ class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocume
     _token: vscode.CancellationToken
   ): Promise<void> {
     webviewPanel.webview.options = { enableScripts: true };
-    webviewPanel.webview.html = (await this.getTemplate());
+    webviewPanel.webview.html = (await this.getTemplate())
+    .replace('<!-- IMAGES_PLACEHOLDER -->', document.renderedHTML)
+    .replace('/*METADATA_PLACEHOLDER*/',
+      `setMetadata(${JSON.stringify(document.metadata)});`
+    );
 
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
       switch (message.type) {
         case "ready":
           webviewPanel.webview.postMessage({
             type: "load",
-            images: document.renderedDataURL,
             metadata: document.metadata
           });
         break;
