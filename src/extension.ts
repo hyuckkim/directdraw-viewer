@@ -34,13 +34,9 @@ class DdsDocument implements vscode.CustomDocument {
 
   static async create(uri: vscode.Uri): Promise<DdsDocument> {
     const data = await vscode.workspace.fs.readFile(uri);
+    const { metadata, content } = ddsToRGBAArray(data);
 
-    return new DdsDocument(
-      uri,
-      data,
-      parseDDS(data),
-      ddsToRGBAArray(data)
-    );
+    return new DdsDocument(uri, data, metadata, content);
   }
   get renderedDataURL(): string[] {
     return this.content.map((img) =>
