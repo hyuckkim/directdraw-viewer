@@ -1,4 +1,15 @@
-export function parseDDS(data: Uint8Array) {
+export interface DdsMetadata {
+    width: number;
+    height: number;
+    format: "dxt1" | "dxt3" | "dxt5";
+    images: {
+        data: Uint8Array<ArrayBufferLike>;
+        width: number;
+        height: number;
+    }[];
+};
+
+export function parseDDS(data: Uint8Array): DdsMetadata {
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
 
     // Magic Number ('DDS ')

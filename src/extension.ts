@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { generateHtmlFromRGBAArray, generateRGBAArrayFromDDS } from './htmlGenerator';
-import { RGBAImage } from './parser';
-import { rgbaToPngBytes } from './encoder';
+import { ddsToRGBAArray, RGBAImage } from './parser';
+import { rgbaToDataURL, rgbaToPngBytes } from './encoder';
+import { DdsMetadata, parseDDS } from './parsedds';
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -19,22 +19,44 @@ export function activate(context: vscode.ExtensionContext) {
 
 class DdsDocument implements vscode.CustomDocument {
   uri: vscode.Uri;
-  content: RGBAImage[] | null = null;
-  constructor(uri: vscode.Uri) { this.uri = uri; }
+
+  data: Uint8Array;
+  metadata: DdsMetadata;
+  content: RGBAImage[];
+
+  constructor(uri: vscode.Uri, data: Uint8Array, metadata: DdsMetadata, content: RGBAImage[]) {
+    this.uri = uri;
+    this.data = data;
+    this.metadata = metadata;
+    this.content = content;
+  }
   dispose(): void {}
+
   static async create(uri: vscode.Uri): Promise<DdsDocument> {
-    const document = new DdsDocument(uri);
-    document.content = await generateRGBAArrayFromDDS(uri);
-    return document;
+    const data = await vscode.workspace.fs.readFile(uri);
+
+    return new DdsDocument(
+      uri,
+      data,
+      parseDDS(data),
+      ddsToRGBAArray(data)
+    );
+  }
+  get renderedDataURL(): string[] {
+    return this.content.map((img) =>
+      rgbaToDataURL(img.data, img.width, img.height)
+    );
+  }
+  get renderedHTML(): string {
+    return this.renderedDataURL.map((url, index) => {
+      return `<img src="${url}" width="${this.content[index].width}" height="${this.content[index].height}" class="dds-image"/>`;
+    }).join("");
   }
 }
 
 class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocument> {
-  public readonly onDidChangeCustomDocument: vscode.Event<vscode.CustomDocumentEditEvent<DdsDocument>>;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
-    this.onDidChangeCustomDocument = new vscode.EventEmitter<vscode.CustomDocumentEditEvent<DdsDocument>>().event;
-  }
+  constructor(private readonly context: vscode.ExtensionContext) { }
 
   async openCustomDocument(
     uri: vscode.Uri,
@@ -50,27 +72,18 @@ class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocume
     _token: vscode.CancellationToken
   ): Promise<void> {
     webviewPanel.webview.options = { enableScripts: true };
-
-    const htmlPath = vscode.Uri.joinPath(this.context.extensionUri, "media", "index.html");
-    let html = await vscode.workspace.fs.readFile(htmlPath);
-    let template = Buffer.from(html).toString("utf-8");
-
-    template = template.replace("<!-- IMAGES_PLACEHOLDER -->", 
-      generateHtmlFromRGBAArray(document.content || [])
+    webviewPanel.webview.html = (await this.getTemplate())
+    .replace("<!-- IMAGES_PLACEHOLDER -->",
+      document.renderedHTML
     );
-
-    webviewPanel.webview.html = template;
 
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
       if (message.type === "download") {
         const { index }: { index: number } = message;
-        if (!document.content) {
-          return;
-        }
 
         const uri = await vscode.window.showSaveDialog({
           filters: { "PNG Image": ["png"] },
-          saveLabel: "Save DDS Image"
+          defaultUri: vscode.Uri.file(document.uri.path + ".png")
         });
         if (uri) {
           await vscode.workspace.fs.writeFile(uri, rgbaToPngBytes(
@@ -82,5 +95,12 @@ class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocume
         }
       }
     });
+  }
+
+  private async getTemplate(): Promise<string> {
+    const htmlPath = vscode.Uri.joinPath(this.context.extensionUri, "media", "index.html");
+    let html = await vscode.workspace.fs.readFile(htmlPath);
+    let template = Buffer.from(html).toString("utf-8");
+    return template;
   }
 }

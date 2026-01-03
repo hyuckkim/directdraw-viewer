@@ -50,14 +50,9 @@ export function ddsToRGBAArray(buffer: Uint8Array): RGBAImage[] {
 export function parseUncompressedDDS(buffer: Uint8Array): RGBAImage {
   const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
-  const magic = String.fromCharCode(
-    view.getUint8(0),
-    view.getUint8(1),
-    view.getUint8(2),
-    view.getUint8(3)
-  );
-  if (magic !== "DDS ") {
-    throw new Error("Invalid DDS magic number");
+  // Magic Number ('DDS ')
+  if (view.getUint32(0, true) !== 0x20534444) {
+      throw new Error('Invalid magic number in DDS header');
   }
 
   const height = view.getUint32(12, true);
