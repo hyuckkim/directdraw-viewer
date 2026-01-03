@@ -73,7 +73,7 @@ export function parseUncompressedDDS(buffer: Uint8Array): ParseResult {
     const metadata: DdsMetadata = {
         width,
         height,
-        format: `uncompressed rgb-${rgbBitCount}`,
+        format: `uncompressed ${getFormatName(rMask, gMask, bMask, aMask)}`,
         images: []
     };
 const content: RGBAImage[] = [];
@@ -138,4 +138,42 @@ function extractChannel(pixel: number, mask: number): number {
   const max = (1 << bits) - 1;
 
   return Math.round((value / max) * 255);
+}
+
+function getFormatName(rMask: number, gMask: number, bMask: number, aMask: number): string {
+  const countBits = (mask: number) => {
+    if (mask === 0) {
+      return 0;
+    }
+    let m = mask;
+    while (m !== 0 && (m & 1) === 0) { m >>>= 1; }
+    let count = 0;
+    while ((m & 1) === 1) { count++; m >>>= 1; }
+    return count;
+  };
+
+  const getShift = (mask: number) => {
+    if (mask === 0) {
+      return -1;
+    }
+    let shift = 0;
+    while (((mask >> shift) & 1) === 0) { shift++; }
+    return shift;
+  };
+
+  const channels = [
+    { name: 'R', mask: rMask, bits: countBits(rMask), shift: getShift(rMask) },
+    { name: 'G', mask: gMask, bits: countBits(gMask), shift: getShift(gMask) },
+    { name: 'B', mask: bMask, bits: countBits(bMask), shift: getShift(bMask) },
+    { name: 'A', mask: aMask, bits: countBits(aMask), shift: getShift(aMask) }
+  ];
+
+  const activeChannels = channels
+    .filter(c => c.mask !== 0)
+    .sort((a, b) => b.shift - a.shift);
+
+  const namePart = activeChannels.map(c => c.name).join('');
+  const bitPart = activeChannels.map(c => c.bits).join('');
+
+  return `${namePart}${bitPart}`;
 }
