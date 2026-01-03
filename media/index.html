@@ -4,17 +4,40 @@
   <meta charset="UTF-8">
   <title>DDS Viewer</title>
   <style>
-    body { font-family: sans-serif; padding: 1rem; position: relative; }
-    #main-image { max-width: 100%; height: auto; display: block; margin-bottom: 2rem; }
+    body {
+      overflow: auto;
+      font-family: sans-serif; position: relative; margin: 0; padding: 0;
+    }
+    #main-image {
+      display: block;
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+    #main-image.full {
+      width: auto;
+      height: auto;
+      max-width: none; 
+      max-height: none;
+    }
+    button {
+      background: var(--vscode-button-background);
+      color: var(--vscode-button-foreground);
+      border: none;
+    }
+    .metadata {
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      color: var(--vscode-editor-foreground);
+    }
     .selector {
       position: fixed;
       bottom: 1rem;
       right: 1rem;
       display: flex;
       gap: 0.5rem;
-      background: rgba(255,255,255,0.9);
+      background: var(--vscode-panel-background);
       padding: 0.5rem;
-      border: 1px solid #ccc;
+      border: 1px solid var(--vscode-panel-border);
       border-radius: 6px;
     }
     .selector img {
@@ -22,26 +45,25 @@
       height: 40px;
       object-fit: cover;
       cursor: pointer;
-      border: 1px solid #aaa;
+      padding: 1px;
     }
     .selector img.active {
-      border: 2px solid #007acc;
-    }
-    .metadata {
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-      color: #555;
+      padding: 0;
+      border: 1px solid var(--vscode-panel-border);
     }
   </style>
 </head>
 <body>
-  <div>
+  <div class="header">
     <button>
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download-icon lucide-download"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
     </button>
+    <button onclick="document.querySelector('#main-image').classList.toggle('full')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-expand-icon lucide-expand"><path d="m15 15 6 6"/><path d="m15 9 6-6"/><path d="M21 16v5h-5"/><path d="M21 8V3h-5"/><path d="M3 16v5h5"/><path d="m3 21 6-6"/><path d="M3 8V3h5"/><path d="M9 9 3 3"/></svg>
+    </button>
     <span id="metadata" class="metadata"></span>
   </div>
-  <img id="main-image" src="" alt="" />
+  <img id="main-image" class="full" src="" alt="" />
 
   <div class="selector" id="selector" style="display: none"></div>
   <div class="image-holder" style="display: none">
