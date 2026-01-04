@@ -50,8 +50,20 @@ This extension does not contribute any settings at the moment.
 
 ## 📄 Release Notes
 
-### 0.0.1
-- Initial release with basic DDS viewing and PNG export.
+## [0.0.1] - 2026-01-02
+
+### Initial Release
+- First public release of DirectDraw Viewer.
+- Open `.dds` files directly in VS Code and display their layers.
+- Basic DDS → PNG conversion and viewing functionality.
+
+
+## [0.0.2] - 2026-01-03
+- Remove unnecessary copies of DDS data.
+
+## [0.0.3] - 2026-01-03
+- Add simple metadata to top.
+- Change default image size to real size (in big image). Can change to previous by resize button.
 
 ---
 
