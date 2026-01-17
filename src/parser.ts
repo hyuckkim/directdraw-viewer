@@ -51,96 +51,175 @@ export function ddsToRGBAArray(buffer: Uint8Array): ParseResult {
   }
 }
 
+interface DdsHeader {
+  width: number;
+  height: number;
+  depth: number;
+  mipmapCount: number;
+  rgbBitCount: number;
+  rMask: number;
+  gMask: number;
+  bMask: number;
+  aMask: number;
+  caps2: number;
+}
+
 export function parseUncompressedDDS(buffer: Uint8Array): ParseResult {
-    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  if (view.getUint32(0, true) !== 0x20534444) {
+    throw new Error("Invalid magic number");
+  }
 
-    if (view.getUint32(0, true) !== 0x20534444) {
-        throw new Error('Invalid magic number');
-    }
+  const header = parseHeader(view);
 
-    const width = view.getUint32(16, true);
-    const height = view.getUint32(12, true);
-    const mipmapCount = Math.max(1, view.getUint32(28, true));
+  if (header.caps2 & 0x00000200) { // DDSCAPS2_CUBEMAP
+    const faces = parseCubeMap(buffer, header);
+    return { metadata: { ...header, format: `uncompressed cubemap ${getFormatName(header)}`, images: [] }, content: faces.flat() };
+  } else if (header.depth > 1) {
+    const slices = parseVolumeTexture(buffer, header);
+    return { metadata: { ...header, format: `uncompressed volume ${getFormatName(header)}`, images: [] }, content: slices.flat() };
+  } else {
+    const images = parseSurfaceData(buffer, header, 128);
+    return { metadata: { ...header, format: `uncompressed 2D ${getFormatName(header)}`, images: [] }, content: images };
+  }
+}
 
-    const rgbBitCount = view.getUint32(88, true); // 16, 24, 32
-    const bytesPerPixel = rgbBitCount / 8;
+function parseSurfaceData(
+  buffer: Uint8Array,
+  header: DdsHeader,
+  offset: number
+): RGBAImage[] {
+  const results: RGBAImage[] = [];
+  let currentOffset = offset;
 
-    const rMask = view.getUint32(92, true);
-    const gMask = view.getUint32(96, true);
-    const bMask = view.getUint32(100, true);
-    const aMask = view.getUint32(104, true);
-
-    const metadata: DdsMetadata = {
-        width,
-        height,
-        format: `uncompressed ${getFormatName(rMask, gMask, bMask, aMask)}`,
-        images: []
-    };
-const content: RGBAImage[] = [];
-  let currentOffset = 128;
-
-  for (let i = 0; i < mipmapCount; i++) {
-    const mWidth = Math.max(1, width >> i);
-    const mHeight = Math.max(1, height >> i);
+  for (let i = 0; i < header.mipmapCount; i++) {
+    const mWidth = Math.max(1, header.width >> i);
+    const mHeight = Math.max(1, header.height >> i);
     const pixelCount = mWidth * mHeight;
-    const byteSize = pixelCount * bytesPerPixel;
+    const byteSize = pixelCount * (header.rgbBitCount / 8);
 
-    if (currentOffset + byteSize > buffer.byteLength) {
-      break;
-    }
-
-    metadata.images.push({ width: mWidth, height: mHeight, data: buffer.subarray(currentOffset, currentOffset + byteSize) });
+    if (currentOffset + byteSize > buffer.byteLength) { break; }
 
     const rgbaData = new Uint8Array(pixelCount * 4);
-    for (let p = 0; p < pixelCount; p++) {
-      let pixel = 0;
-      const pos = currentOffset + p * bytesPerPixel;
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
-      if (rgbBitCount === 32) {
-        pixel = view.getUint32(pos, true);
-      } else if (rgbBitCount === 24) {
-        // Little Endian
-        pixel = view.getUint8(pos) | (view.getUint8(pos + 1) << 8) | (view.getUint8(pos + 2) << 16);
-      } else if (rgbBitCount === 16) {
-        pixel = view.getUint16(pos, true);
-      }
+    const rMask = calcChannel(header.rMask);
+    const gMask = calcChannel(header.gMask);
+    const bMask = calcChannel(header.bMask);
+    const aMask = calcChannel(header.bMask);
+    for (let p = 0; p < pixelCount; p++) {
+      const pos = currentOffset + p * (header.rgbBitCount / 8);
+      let pixel = 0;
+
+      if (header.rgbBitCount === 32) { pixel = view.getUint32(pos, true); }
+      else if (header.rgbBitCount === 24) {
+        pixel = view.getUint8(pos) |
+                (view.getUint8(pos + 1) << 8) |
+                (view.getUint8(pos + 2) << 16);
+      } else if (header.rgbBitCount === 16) { pixel = view.getUint16(pos, true); }
 
       const dst = p * 4;
       rgbaData[dst]     = extractChannel(pixel, rMask);
       rgbaData[dst + 1] = extractChannel(pixel, gMask);
       rgbaData[dst + 2] = extractChannel(pixel, bMask);
-      rgbaData[dst + 3] = aMask !== 0 ? extractChannel(pixel, aMask) : 255;
+      rgbaData[dst + 3] = header.aMask !== 0 ? extractChannel(pixel, aMask) : 255;
     }
 
-    content.push({ width: mWidth, height: mHeight, data: rgbaData });
+    results.push({ width: mWidth, height: mHeight, data: rgbaData });
     currentOffset += byteSize;
   }
 
-  return { metadata, content };
+  return results;
 }
 
-function extractChannel(pixel: number, mask: number): number {
+function parseCubeMap(buffer: Uint8Array, header: DdsHeader): RGBAImage[][] {
+  const faces: RGBAImage[][] = [];
+  const faceNames = ["posX", "negX", "posY", "negY", "posZ", "negZ"];
+  let offset = 128;
+
+  for (const face of faceNames) {
+    if (header.caps2 & getCubeFaceFlag(face)) {
+      const images = parseSurfaceData(buffer, header, offset);
+      faces.push(images);
+      // offset 증가: 각 face 데이터 크기만큼 더해줘야 함
+      const faceSize = images.reduce((sum, img) => sum + img.data.byteLength, 0);
+      offset += faceSize;
+    }
+  }
+  return faces;
+}
+
+function getCubeFaceFlag(face: string): number {
+  switch (face) {
+    case "posX": return 0x00000600; // DDSCAPS2_CUBEMAP_POSITIVEX
+    case "negX": return 0x00000a00;
+    case "posY": return 0x00001200;
+    case "negY": return 0x00002200;
+    case "posZ": return 0x00004200;
+    case "negZ": return 0x00008200;
+    default: return 0;
+  }
+}
+
+function parseVolumeTexture(buffer: Uint8Array, header: DdsHeader): RGBAImage[][] {
+  const slices: RGBAImage[][] = [];
+  let offset = 128;
+
+  for (let z = 0; z < header.depth; z++) {
+    const images = parseSurfaceData(buffer, header, offset);
+    slices.push(images);
+    const sliceSize = images.reduce((sum, img) => sum + img.data.byteLength, 0);
+    offset += sliceSize;
+  }
+  return slices;
+}
+
+function parseHeader(view: DataView): DdsHeader {
+  return {
+    width: view.getUint32(16, true),
+    height: view.getUint32(12, true),
+    depth: view.getUint32(24, true), // dwDepth
+    mipmapCount: Math.max(1, view.getUint32(28, true)),
+    rgbBitCount: view.getUint32(88, true),
+    rMask: view.getUint32(92, true),
+    gMask: view.getUint32(96, true),
+    bMask: view.getUint32(100, true),
+    aMask: view.getUint32(104, true),
+    caps2: view.getUint32(112, true) // dwCaps2
+  };
+}
+
+
+interface ChannelInfo {
+  mask: number;
+  shift: number;
+  bits: number;
+}
+
+function calcChannel(mask: number): ChannelInfo {
   if (mask === 0) {
-    return 0;
+    return { mask: 0, shift: 0, bits: 0 };
   }
 
   let shift = 0;
-  while (((mask >> shift) & 1) === 0) {
-    shift++;
-  }
+  while (((mask >> shift) & 1) === 0) { shift++; }
 
   let bits = 0;
-  while (((mask >> (shift + bits)) & 1) === 1) {
-    bits++;
-  }
+  while (((mask >> (shift + bits)) & 1) === 1) { bits++; }
 
-  const value = (pixel & mask) >> shift;
-  const max = (1 << bits) - 1;
+  return { mask, shift, bits };
+}
 
+function extractChannel(pixel: number, channel: ChannelInfo): number {
+  if (channel.mask === 0) { return 0; }
+
+  const value = (pixel & channel.mask) >> channel.shift;
+  const max = (1 << channel.bits) - 1;
   return Math.round((value / max) * 255);
 }
 
-function getFormatName(rMask: number, gMask: number, bMask: number, aMask: number): string {
+
+function getFormatName({rMask, gMask, bMask, aMask}: DdsHeader): string {
   const countBits = (mask: number) => {
     if (mask === 0) {
       return 0;

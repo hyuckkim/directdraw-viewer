@@ -30,3 +30,8 @@ All notable changes to the **DirectDraw Viewer** extension will be documented he
 ## [0.0.3] - 2026-01-03
 - Add simple metadata to top.
 - Change default image size to real size (in big image). Can change to previous by resize button.
+
+## [0.0.4] - 2026-01-17
+- Add extension Icon.
+- Support cubemaps and volume data on uncompressed images.
+- Improved parsing speed for uncompressed images.
