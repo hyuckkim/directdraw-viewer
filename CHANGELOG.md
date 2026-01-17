@@ -35,3 +35,6 @@ All notable changes to the **DirectDraw Viewer** extension will be documented he
 - Add extension Icon.
 - Support cubemaps and volume data on uncompressed images.
 - Improved parsing speed for uncompressed images.
+
+## [0.0.5] - 2026-01-17
+- fix typo of mask

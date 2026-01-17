@@ -2,7 +2,7 @@
   "name": "directdraw-viewer",
   "displayName": "DirectDraw DDS Viewer",
   "description": "show directdraw file on layer-by-layer. using parse-dds library.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "icon": "media/icon.png",
   "publisher": "hyuckkim",
   "engines": {
