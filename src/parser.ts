@@ -106,7 +106,7 @@ function parseSurfaceData(
     const rMask = calcChannel(header.rMask);
     const gMask = calcChannel(header.gMask);
     const bMask = calcChannel(header.bMask);
-    const aMask = calcChannel(header.bMask);
+    const aMask = calcChannel(header.aMask);
     for (let p = 0; p < pixelCount; p++) {
       const pos = currentOffset + p * (header.rgbBitCount / 8);
       let pixel = 0;
