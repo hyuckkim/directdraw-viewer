@@ -4,14 +4,35 @@
   <meta charset="UTF-8">
   <title>DDS Viewer</title>
   <style>
-    body {
-      overflow: auto;
-      font-family: sans-serif; position: relative; margin: 0; padding: 0;
+    html, body {
+      width: 100%;
+      height: 100%;
+      text-align: center;
     }
+    body {
+      display: flex;
+      margin: 0; padding: 0;
+    }
+    body .image {
+      max-width: none;
+      max-height: none;
+	    margin: auto;
+    }
+    .header {
+      text-align: left;
+    }
+
     #main-image {
       display: block;
-      margin-bottom: 2rem;
       overflow: hidden;
+      
+      padding: 0;
+      background-size: 16px 16px;
+      border: 1px solid var(--vscode-imagePreview-border);
+    	background-image: conic-gradient(rgb(230, 230, 230) 25%, transparent 25% 50%, rgb(230, 230, 230) 50% 75%, transparent 75%);
+    }
+    .vscode-dark #main-image {
+	    background-image: conic-gradient(rgb(20, 20, 20) 25%, transparent 25% 50%, rgb(20, 20, 20) 50% 75%, transparent 75%);
     }
     #main-image.full {
       width: auto;
@@ -53,17 +74,13 @@
     }
   </style>
 </head>
-<body>
-  <div class="header">
-    <button class="download">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download-icon lucide-download"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg>
-    </button>
-    <button onclick="document.querySelector('#main-image').classList.toggle('full')">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-expand-icon lucide-expand"><path d="m15 15 6 6"/><path d="m15 9 6-6"/><path d="M21 16v5h-5"/><path d="M21 8V3h-5"/><path d="M3 16v5h5"/><path d="m3 21 6-6"/><path d="M3 8V3h5"/><path d="M9 9 3 3"/></svg>
-    </button>
-    <span id="metadata" class="metadata"></span>
+<body class="container" data-vscode-context='{ "preventDefaultContextMenuItems": true }'>
+  <div class="image">
+    <div class="header">
+      <span id="metadata" class="metadata"></span>
+    </div>
+    <img id="main-image" class="full" src="" alt="" />
   </div>
-  <img id="main-image" class="full" src="" alt="" />
 
   <div class="selector" id="selector" style="display: none"></div>
   <div class="image-holder" style="display: none">
@@ -113,9 +130,42 @@
       }
     }
     
-    document.querySelector('button.download').addEventListener('click', () => {
-      vscode.postMessage({ type: "download", index: idx })
-    });
+    window.addEventListener('message', async (event) => {
+    const message = event.data;
+
+    if (message.type === 'copy') {
+      await copyCurrentImage();
+    }
+  });
+
+  async function copyCurrentImage(retries = 5) {
+  if (!document.hasFocus() && retries > 0) {
+    setTimeout(() => {
+      copyCurrentImage(retries - 1);
+    }, 20);
+    return;
+  }
+
+  try {
+    const mainImage = document.getElementById('main-image');
+
+    if (!mainImage?.src) {
+      throw new Error('No image to copy');
+    }
+
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'image/png': fetch(mainImage.src).then(response => response.blob())
+      })
+    ]);
+  } catch (e) {
+    console.error('Failed to copy image:', e);
+  }
+}
+
+  document.querySelector('button.download').addEventListener('click', () => {
+    vscode.postMessage({ type: "download", index: idx })
+  });
   </script>
 </body>
 </html>

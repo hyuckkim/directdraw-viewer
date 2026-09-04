@@ -24,7 +24,21 @@
           }
         ]
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "ddsViewer.copyImage",
+        "title": "Copy"
+      }
+    ],
+    "menus": {
+      "webview/context": [
+        {
+          "command": "ddsViewer.copyImage",
+          "when": "webviewId == directdraw-viewer.ddsViewer"
+        }
+      ]
+    }
   },
   "repository": {
     "type": "git",

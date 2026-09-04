@@ -4,16 +4,32 @@ import { rgbaToDataURL, rgbaToPngBytes } from './encoder';
 import { DdsMetadata } from './parsedds';
 
 export function activate(context: vscode.ExtensionContext) {
+  const provider = new DdsEditorProvider(context);
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(
       'directdraw-viewer.ddsViewer',
-      new DdsEditorProvider(context),
+      provider,
       {
         webviewOptions: {
           retainContextWhenHidden: true
         }
       }
     )
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ddsViewer.copyImage', async () => {
+      const activeDoc = provider.getActiveDocument();
+      if (!activeDoc) {
+        vscode.window.showErrorMessage("No active DDS document.");
+        return;
+      }
+      activeDoc.webviewPanel.reveal(
+      activeDoc.webviewPanel.viewColumn,
+      true);
+      activeDoc.webviewPanel.webview.postMessage({
+        type: "copy",
+      });
+    })
   );
 }
 
@@ -55,7 +71,14 @@ class DdsDocument implements vscode.CustomDocument {
   }
 }
 
+interface DdsEditor {
+  document: DdsDocument;
+  webviewPanel: vscode.WebviewPanel;
+}
+
 class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocument> {
+  private readonly _openDocs = new Set<DdsEditor>();
+  private _activeDoc: DdsEditor | undefined;
 
   constructor(private readonly context: vscode.ExtensionContext) { }
 
@@ -72,12 +95,29 @@ class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocume
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
+    const editor: DdsEditor = { document, webviewPanel };
+    this._openDocs.add(editor);
+    this._activeDoc = editor;
+
     webviewPanel.webview.options = { enableScripts: true };
     webviewPanel.webview.html = (await this.getTemplate())
     .replace('<!-- IMAGES_PLACEHOLDER -->', document.renderedHTML)
     .replace('/*METADATA_PLACEHOLDER*/',
       `setMetadata(${JSON.stringify(document.metadata)});`
     );
+    webviewPanel.onDidDispose(() => {
+      this._openDocs.delete(editor);
+      if (this._activeDoc === editor) {
+        this._activeDoc = undefined;
+      }
+    });
+    webviewPanel.onDidChangeViewState((e) => {
+      if (e.webviewPanel.active) {
+        this._activeDoc = editor;
+      } else if (this._activeDoc === editor && !e.webviewPanel.active) {
+        this._activeDoc = undefined;
+      }
+    });
 
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
       switch (message.type) {
@@ -96,6 +136,10 @@ class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocume
       }
     });
   }
+  public getActiveDocument(): DdsEditor | undefined {
+    return this._activeDoc;
+  }
+
   private async downloadPNG(defaultUri: vscode.Uri, img: RGBAImage) {
     const uri = await vscode.window.showSaveDialog({
       filters: { "PNG Image": ["png"] },
