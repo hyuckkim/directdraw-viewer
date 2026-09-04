@@ -122,37 +122,12 @@ class DdsEditorProvider implements vscode.CustomReadonlyEditorProvider<DdsDocume
     webviewPanel.webview.onDidReceiveMessage(async (message) => {
       switch (message.type) {
         case "ready":
-          webviewPanel.webview.postMessage({
-            type: "load",
-            metadata: document.metadata
-          });
-        break;
-        case "download":
-          await this.downloadPNG(
-            vscode.Uri.file(document.uri.path + ".png"),
-            document.content[message.index]
-          );
         break;
       }
     });
   }
   public getActiveDocument(): DdsEditor | undefined {
     return this._activeDoc;
-  }
-
-  private async downloadPNG(defaultUri: vscode.Uri, img: RGBAImage) {
-    const uri = await vscode.window.showSaveDialog({
-      filters: { "PNG Image": ["png"] },
-      defaultUri: defaultUri,
-    });
-    if (uri) {
-      await vscode.workspace.fs.writeFile(uri, rgbaToPngBytes(
-        img.data,
-        img.width,
-        img.height
-      ));
-      vscode.window.showInformationMessage(`Saved to ${uri.fsPath}`);
-    }
   }
 
   private async getTemplate(): Promise<string> {

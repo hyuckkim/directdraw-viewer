@@ -4,74 +4,103 @@
   <meta charset="UTF-8">
   <title>DDS Viewer</title>
   <style>
-    html, body {
-      width: 100%;
-      height: 100%;
-      text-align: center;
-    }
-    body {
-      display: flex;
-      margin: 0; padding: 0;
-    }
-    body .image {
-      max-width: none;
-      max-height: none;
-	    margin: auto;
-    }
-    .header {
-      text-align: left;
-    }
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
 
-    #main-image {
-      display: block;
-      overflow: hidden;
-      
-      padding: 0;
-      background-size: 16px 16px;
-      border: 1px solid var(--vscode-imagePreview-border);
-    	background-image: conic-gradient(rgb(230, 230, 230) 25%, transparent 25% 50%, rgb(230, 230, 230) 50% 75%, transparent 75%);
-    }
-    .vscode-dark #main-image {
-	    background-image: conic-gradient(rgb(20, 20, 20) 25%, transparent 25% 50%, rgb(20, 20, 20) 50% 75%, transparent 75%);
-    }
-    #main-image.full {
-      width: auto;
-      height: auto;
-      max-width: none; 
-      max-height: none;
-    }
-    button {
-      background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
-      border: none;
-    }
-    .metadata {
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-      color: var(--vscode-editor-foreground);
-    }
-    .selector {
-      position: fixed;
-      bottom: 1rem;
-      right: 1rem;
-      display: flex;
-      gap: 0.5rem;
-      background: var(--vscode-panel-background);
-      padding: 0.5rem;
-      border: 1px solid var(--vscode-panel-border);
-      border-radius: 6px;
-    }
-    .selector img {
-      width: 40px;
-      height: 40px;
-      object-fit: cover;
-      cursor: pointer;
-      padding: 1px;
-    }
-    .selector img.active {
-      padding: 0;
-      border: 1px solid var(--vscode-panel-border);
-    }
+body {
+  overflow: auto;
+}
+
+.image {
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+
+  box-sizing: border-box;
+  padding: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.header {
+  text-align: left;
+}
+
+#main-image {
+  display: block;
+
+  padding: 0;
+
+  max-width: none;
+  max-height: none;
+
+  background-size: 16px 16px;
+
+  border: 1px solid var(--vscode-imagePreview-border);
+
+  background-image:
+    conic-gradient(
+      rgb(230, 230, 230) 25%,
+      transparent 25% 50%,
+      rgb(230, 230, 230) 50% 75%,
+      transparent 75%
+    );
+}
+
+.vscode-dark #main-image {
+  background-image:
+    conic-gradient(
+      rgb(20, 20, 20) 25%,
+      transparent 25% 50%,
+      rgb(20, 20, 20) 50% 75%,
+      transparent 75%
+    );
+}
+
+#main-image.scale-to-fit {
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 4rem);
+
+  width: auto;
+  height: auto;
+}
+
+#main-image.pixelated {
+  image-rendering: pixelated;
+}
+
+
+.selector {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  background: var(--vscode-panel-background);
+  padding: 0.5rem;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+}
+.selector img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  cursor: pointer;
+  padding: 1px;
+}
+.selector img.active {
+  padding: 0;
+  border: 1px solid var(--vscode-panel-border);
+}
+
   </style>
 </head>
 <body class="container" data-vscode-context='{ "preventDefaultContextMenuItems": true }'>
@@ -87,85 +116,247 @@
     <!-- IMAGES_PLACEHOLDER -->
   </div>
 
-  <script>
-    const vscode = acquireVsCodeApi();
-    let idx = 0;
-    enableImage();
-    /*METADATA_PLACEHOLDER*/
+<script>
+const vscode = acquireVsCodeApi();
+let idx = 0;
 
-    function setMetadata({ width, height, format }) {
-      const metadataEl = document.getElementById('metadata');
-      metadataEl.textContent = `${width} x ${height} | ${format}`;
-    }
+const MIN_SCALE = 0.1;
+const MAX_SCALE = 20;
+const PIXELATION_THRESHOLD = 3;
 
-    function enableImage() {
-      const allImages = document.querySelectorAll('.dds-image');
+const zoomLevels = [
+  0.1,
+  0.2,
+  0.3,
+  0.4,
+  0.5,
+  0.6,
+  0.7,
+  0.8,
+  0.9,
+  1,
+  1.5,
+  2,
+  3,
+  5,
+  7,
+  10,
+  15,
+  20,
+];
 
-      const mainImage = document.getElementById('main-image');
-      const selector = document.getElementById('selector');
+let scale = 'fit';
 
+const initialState = vscode.getState();
+const mainImage = document.getElementById('main-image');
 
-      allImages.forEach((img, index) => {
-        const thumb = document.createElement('img');
-        thumb.src = img.src;
-        thumb.dataset.index = index;
-        thumb.addEventListener('click', () => {
-          mainImage.src = img.src;
-          document.querySelectorAll('.selector img').forEach(el => el.classList.remove('active'));
-          thumb.classList.add('active');
-          idx = index;
-        });
-        selector.appendChild(thumb);
-      });
+if (initialState?.scale !== undefined) {
+  scale = initialState.scale;
+}
 
-      if (allImages.length > 0) {
-        mainImage.src = allImages[0].src;
-        selector.querySelector('img').classList.add('active');
-      }
+function applyScale() {
 
-      if (allImages.length === 1) {
-        selector.style.display = 'none';
-      } else {
-        selector.style.display = 'flex';
-      }
-    }
-    
-    window.addEventListener('message', async (event) => {
-    const message = event.data;
-
-    if (message.type === 'copy') {
-      await copyCurrentImage();
-    }
-  });
-
-  async function copyCurrentImage(retries = 5) {
-  if (!document.hasFocus() && retries > 0) {
-    setTimeout(() => {
-      copyCurrentImage(retries - 1);
-    }, 20);
+  if (!mainImage || !mainImage.naturalWidth) {
     return;
   }
 
-  try {
-    const mainImage = document.getElementById('main-image');
+  if (scale === 'fit') {
+    mainImage.classList.add('scale-to-fit');
+    mainImage.classList.remove('pixelated');
 
-    if (!mainImage?.src) {
-      throw new Error('No image to copy');
-    }
+    mainImage.style.zoom = 'normal';
 
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        'image/png': fetch(mainImage.src).then(response => response.blob())
-      })
-    ]);
-  } catch (e) {
-    console.error('Failed to copy image:', e);
+    vscode.setState(undefined);
+
+    return;
   }
+
+  mainImage.classList.remove('scale-to-fit');
+
+  if (scale >= PIXELATION_THRESHOLD) {
+    mainImage.classList.add('pixelated');
+  } else {
+    mainImage.classList.remove('pixelated');
+  }
+
+  /*
+   * 확대 전 현재 화면의 중심이 이미지에서
+   * 어느 위치를 보고 있었는지 기억한다.
+   */
+  const dx =
+    (window.scrollX + window.innerWidth / 2) /
+    document.documentElement.scrollWidth;
+
+  const dy =
+    (window.scrollY + window.innerHeight / 2) /
+    document.documentElement.scrollHeight;
+
+  mainImage.style.zoom = scale;
+
+  requestAnimationFrame(() => {
+    const scrollWidth = document.documentElement.scrollWidth;
+    const scrollHeight = document.documentElement.scrollHeight;
+
+    const newScrollX =
+      scrollWidth * dx - window.innerWidth / 2;
+
+    const newScrollY =
+      scrollHeight * dy - window.innerHeight / 2;
+
+    window.scrollTo(
+      Math.max(0, newScrollX),
+      Math.max(0, newScrollY)
+    );
+
+    vscode.setState({
+      scale,
+      offsetX: newScrollX,
+      offsetY: newScrollY,
+    });
+  });
+}
+function zoomIn() {
+  if (scale === 'fit') {
+    setScale(1);
+    return;
+  }
+
+  const next = zoomLevels.find(level => level > scale);
+
+  setScale(next ?? MAX_SCALE);
 }
 
-  document.querySelector('button.download').addEventListener('click', () => {
-    vscode.postMessage({ type: "download", index: idx })
-  });
-  </script>
+function zoomOut() {
+  if (scale === 'fit') {
+    setScale(1);
+    return;
+  }
+
+  let next = MIN_SCALE;
+
+  for (let i = zoomLevels.length - 1; i >= 0; i--) {
+    if (zoomLevels[i] < scale) {
+      next = zoomLevels[i];
+      break;
+    }
+  }
+
+  setScale(next);
+}
+
+function setScale(value) {
+  if (value === 'fit') {
+    scale = 'fit';
+  } else {
+    scale = Math.min(
+      Math.max(value, MIN_SCALE),
+      MAX_SCALE
+    );
+  }
+
+  applyScale();
+}
+
+mainImage.addEventListener('load', () => {
+  applyScale();
+});
+const isMac =
+  navigator.platform.toUpperCase().includes('MAC');
+
+window.addEventListener(
+  'wheel',
+  (e) => {
+    const modifier = isMac
+      ? e.altKey
+      : e.ctrlKey;
+
+    if (!modifier) {
+      return;
+    }
+
+    e.preventDefault();
+
+    if (e.deltaY < 0) {
+      zoomIn();
+    } else {
+      zoomOut();
+    }
+  },
+  { passive: false }
+);
+  enableImage();
+  /*METADATA_PLACEHOLDER*/
+
+  function setMetadata({ width, height, format }) {
+    const metadataEl = document.getElementById('metadata');
+    metadataEl.textContent = `${width} x ${height} | ${format}`;
+  }
+
+  function enableImage() {
+    const allImages = document.querySelectorAll('.dds-image');
+
+    const mainImage = document.getElementById('main-image');
+    const selector = document.getElementById('selector');
+
+
+    allImages.forEach((img, index) => {
+      const thumb = document.createElement('img');
+      thumb.src = img.src;
+      thumb.dataset.index = index;
+      thumb.addEventListener('click', () => {
+        mainImage.src = img.src;
+        document.querySelectorAll('.selector img').forEach(el => el.classList.remove('active'));
+        thumb.classList.add('active');
+        idx = index;  
+        scale = 'fit';
+      });
+      selector.appendChild(thumb);
+    });
+
+    if (allImages.length > 0) {
+      mainImage.src = allImages[0].src;
+      selector.querySelector('img').classList.add('active');
+    }
+
+    if (allImages.length === 1) {
+      selector.style.display = 'none';
+    } else {
+      selector.style.display = 'flex';
+    }
+  }
+  
+  window.addEventListener('message', async (event) => {
+  const message = event.data;
+
+  if (message.type === 'copy') {
+    await copyCurrentImage();
+  }
+});
+
+async function copyCurrentImage(retries = 5) {
+if (!document.hasFocus() && retries > 0) {
+  setTimeout(() => {
+    copyCurrentImage(retries - 1);
+  }, 20);
+  return;
+}
+
+try {
+  const mainImage = document.getElementById('main-image');
+
+  if (!mainImage?.src) {
+    throw new Error('No image to copy');
+  }
+
+  await navigator.clipboard.write([
+    new ClipboardItem({
+      'image/png': fetch(mainImage.src).then(response => response.blob())
+    })
+  ]);
+} catch (e) {
+  console.error('Failed to copy image:', e);
+}
+}
+</script>
 </body>
 </html>
