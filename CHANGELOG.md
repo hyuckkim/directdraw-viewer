@@ -38,3 +38,7 @@ All notable changes to the **DirectDraw Viewer** extension will be documented he
 
 ## [0.0.5] - 2026-01-17
 - fix typo of mask
+
+## [0.1.0] - 2026-09-05
+- The UI has been completely rebuilt based on the [MediaPreview](https://github.com/microsoft/vscode/tree/main/extensions/media-preview).
+- Copy and zoom now work instead of the 'default action button' that was temporarily set up.
